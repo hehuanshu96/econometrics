@@ -1,0 +1,589 @@
+---
+title: "Capitulo 11"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+11.1) Use la base de datos HSEINV.RAW para este ejercicio.
+
+i) Calcule la autocorrelación de primer orden de log(invpc). Ahora, calcule la autocorrelación
+después de eliminar la tendencia lineal de log(invpc). Realice el mismo procedimiento
+para log( price). ¿Cuál de las dos series podría tener raíz unitaria?
+
+```{r cars}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/hseinv.RData")
+# autocorrelación de primer orden de log(invpc)
+hseinv <- data
+acf(hseinv$linvpc)
+#después de eliminar la tendencia lineal de log(invpc)
+linvpc_trendOff <- resid(lm(data = hseinv, linvpc ~ t))
+
+acf(linvpc_trendOff)
+```
+
+
+
+```{r}
+# autocorrelación de primer orden de log(price)
+hseinv <- data
+acf(hseinv$lprice)
+#después de eliminar la tendencia lineal de log(price)
+lprice_trendOff <- resid(lm(data = hseinv, lprice ~ t))
+
+acf(lprice_trendOff)
+```
+De manera informal, se puede asumir que la serie log(price) presenta raiz unitaria, pues su autocorrelacion de primer orden tanto para las serie con tendencia como para sin tendencia es mas de 0.8; mientras que la serie log(linvpc) tiene autocorrelacion de orden 1 baja y muy baja cuando se elimina la tendencia. 
+
+<H1>APLICANDO LA PRUEBA DE Dickey-Fuller</H1>
+```{r}
+library(urca)
+#Augmented Dickey-Fuller Test Unit Root Test to log(invpc)
+linvpc <- ur.df(ts(hseinv$linvpc, start = c(1947), freq = 1), lags = 4, selectlags = "BIC", type = "trend")
+summary(linvpc)
+
+```
+
+Se rechaza h0 por lo cual no hay raiz unitaria.
+
+```{r}
+#Augmented Dickey-Fuller Test Unit Root Test to log(price)
+lprice <- ur.df(ts(hseinv$lprice, start = c(1947), freq = 1), lags = 4, selectlags = "BIC", type = "trend")
+lprice <- ur.df(ts(hseinv$lprice, start = c(1947), freq = 1), lags = 4, selectlags = "BIC", type = "drift")
+lprice <- ur.df(ts(hseinv$lprice, start = c(1947), freq = 1), lags = 4, selectlags = "BIC", type = "none")
+summary(lprice)
+
+```
+
+No se puede rechazar h0 por tanto si hay raiz unitaria.
+
+
+ii) A partir de los resultados del inciso i), estime la ecuación
+log(invpct) = ??0 +??1??log(pricet) + ??2t + ut
+y escriba los resultados en la forma usual. Interprete el coeficiente ??^1 y determine si en términos estadísticos es significativo.
+
+```{r}
+
+model11_1ii <- lm(data = hseinv, linvpc ~ I(lprice-lprice_1) + t)
+summary(model11_1ii)
+```
+
+Existe correlacion entre el log ingreso percapita y la variacion del log indice de precios, con un R-squared de 0.51, la prueba f indica que el modelo es util a un nivel de significancia del 99%. todos sus estimadores son significativos al 99.9%. en cuant a I(lprice - lprice_1), cuando la variacion del indice de precios se incremente en 1%, se espera que el ingreso percapita aumente en 3.9%.
+
+iii)Elimine la tendencia lineal de log(invpct) y use la versión sin tendencia como la variable
+dependiente en la regresión del inciso ii) (véase la sección 10.5). ¿Qué ocurre con
+la R2?
+
+```{r}
+#después de eliminar la tendencia de log(linvpc)
+#residuals <- c(NA,residuals(model11_1ii))
+residuals <- residuals(lm(data = hseinv, linvpc ~ t))
+
+model11_1ii <- update(model11_1ii, residuals ~ .)
+
+summary(model11_1ii)
+```
+luego de quitar la tendencia, se pierde completamente la correlacion entre estas dos variables. 
+
+iv) Ahora utilice ??log(invpct) como variable dependiente. ¿En qué difieren sus resultados
+respecto a los resultados del inciso ii)? ¿La tendencia temporal sigue siendo significativa? ¿Por qué?
+
+```{r}
+model11_1ii <- update(model11_1ii, I(linvpc-linvpc_1)~.)
+summary(model11_1ii)
+
+
+```
+En este nuevo modelo, la tendencia temporal no es significativa, y ademas el R-squared se vuelce casi 0. esto debido a que no hay correlacion entre las diferencias ni tampoco hay tendencia en ellas.
+
+
+11.2
+Ejercicio 2
+
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/earns.RData")
+earns <- data
+
+Mod11_2 <- lm(data = earns, ghrwage~ goutphr + goutph_1)
+summary(Mod11_2)
+
+
+```
+```{r}
+library(car)
+Mod11_2ii <- lm(data = earns, ghrwage ~ goutphr + I(goutph_1 - goutphr))
+summary(Mod11_2ii)
+linearHypothesis(Mod11_2ii, c("goutphr = 1"))
+```
+
+
+```{r}
+
+res11_2 <- residuals(Mod11_2)
+acf(res11_2)
+
+```
+ No hay autocorrelaci??n de orden 1, no es necesario incluir otro resago
+ 
+ 
+ 
+```{r}
+Mod11_22 <- update(Mod11_2, . ~ . + goutph_2)
+summary(Mod11_22)
+```
+ No es significativa
+ 
+ Dickey Fuller
+ Residuales
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/traffic2.RData")
+traffic2 <- data
+#sacar unem_1
+unem_1 <- lag(traffic2$unem)
+res11_2 <- ur.df(res11_2, lags = 4, selectlags = "BIC", type = "trend")
+summary(res11_2)
+
+```
+ No hay ra??z untaria en los residuales.
+ 
+ 
+ Ejercicio 3
+ 
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/nyse.RData")
+
+nyse <- data
+Mod11_3 <- lm(data = nyse, return ~ return_1 + I(return_1^2))
+summary(Mod11_3)
+
+
+```
+ No se puede rechazar
+
+ii) no se puede decir que return_1 tenga influencia sobre return, dado que en conjunto no son significativos, tiene un p-valor de 0.1161
+ 
+```{r}
+return_2 <- lag(nyse$return_1)
+Mod11_3iii <- update(Mod11_3, . ~ return_1 + I(return_1*return_2))
+summary(Mod11_3iii)
+
+
+```
+ El modelo no es ??til, no se puede predecir el retonro de acuerdo a retornos pasados.
+
+
+Ejercicio 4 
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/phillips.RData")
+library(dplyr)
+
+phillips <- data
+phillips <- mutate(phillips, dinf = c(NA, diff(phillips$inf)))
+phillips <- filter(phillips, year < 1997)
+Mod11_4 <- lm(data = phillips, cinf ~ cunem)
+summary(Mod11_4)
+
+
+
+```
+ relaci??n inversa entre inflaci??n y desempleo en sus primeras diferencias.
+ Cuando el desempleo aumenta en 1 la inflaci??n disminuye en 0.84.
+ 
+ ii)  La R^2 es m??s alta en el modelo de las priemras diferencias. 
+ 
+ 
+ Ejercicio 5
+ 
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/fertil3.RData")
+fertil <- data
+
+Mod11_5 <- lm(data= fertil, cgfr ~ cpe + cpe_1 + cpe_2 + t)
+summary(Mod11_5)
+
+```
+ 
+La tendencia lineal no es significativa, la R^2 ajustada disminuye y mantiene la R^2 igual. Por lo tanto, no es necesario agregar la tendencia. 
+
+ii)
+```{r}
+library(car)
+Mod11_5 <- lm(data= fertil, cgfr ~ cpe + cpe_1 + cpe_2 + ww2 + pill)
+summary(Mod11_5)
+linearHypothesis(Mod11_5, c("pill", "ww2"))
+
+
+```
+No son significativas, pero casi. 
+
+iii)
+```{r}
+Mod11_5 <- lm(data= fertil, cgfr ~ cpe + cpe_1 + cpe_2 + ww2 + pill + t)
+summary(Mod11_5)
+
+```
+
+iv) plp
+```{r}
+Mod11_5 <- lm(data= fertil, cgfr ~ cpe + I(cpe_1-cpe) + I(cpe_2-cpe) + ww2 + pill + t)
+summary(Mod11_5)
+```
+Tenemos que PLP -0.005779 con se= 0.061184
+
+iv) ??Es robusto? ??Funciona mejor con su primera diferencia? Revisar las otras regresiones para ver si "pe" cambia mucho con los diferentes modelos 
+
+
+Ejercicio 6
+i)
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/inven.RData")
+inven <- data
+Mod11_6 <- lm(data = inven, cinven ~ cgdp)
+summary(Mod11_6)
+
+
+```
+En la ecuacion anterior, se observa una correlacion positiva entre la variacion del PIB y el valor real de los inventarios en EUA. el R^2 es alto al igual que la significancia de b1 la cual esta cerca de 99.99% esto indica que b1 si es mayor que 0 y podria interpretarse como: por cada incremento en el PIB de una unidad, los inventarios tendrian una inversion de 0.15 unidades monetarias.
+
+ii)
+```{r}
+Mod11_6 <- lm(data = inven, cinven ~ cgdp + r3)
+summary(Mod11_6)
+```
+la tasa de interes parece no afectar significativamente el valor real de los inventarios, pues no existe suficiente evidencia estadistica para rechazar que el estimador de r3 sea igual a 0.
+
+iii)
+```{r}
+Mod11_6 <- lm(data = inven, cinven ~ cgdp + cr3)
+summary(Mod11_6)
+tsr3 <- ts(inven$r3, start = c(1947), freq = 1)
+tsr3 <- ur.df(tsr3, lags = 4, selectlags = "BIC", type = "trend")
+summary(tsr3)
+tsr3 <- ts(inven$r3, start = c(1947), freq = 1)
+tsr3 <- ur.df(tsr3, lags = 4, selectlags = "BIC", type = "drift")
+summary(tsr3)
+tsr3 <- ts(inven$r3, start = c(1947), freq = 1)
+tsr3 <- ur.df(tsr3, lags = 4, selectlags = "BIC", type = "none")
+summary(tsr3)
+
+
+```
+S??lo la prueba MA es significativa al 9.64%, por lo tanto no podemos rechazar que tenga ra??z unitaria si  ??: 5%. Por lo tanto concluimos que tiene ra??z unitaria si ??: 5%
+
+iii) La primera diferencia en la tasa de interes tampoco funciona, no es significante nisiquiera al 10%.
+
+Ejercicio 7
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/consump.RData")
+consump <- data
+
+Mod11_7 <- lm(data = consump, gc ~ gc_1)
+summary(Mod11_7)
+
+```
+H0: ??1=0 H1: ??1???0
+Rechazamos H0 porque ??1 tiene un p-valor de 0.0071. Esto nos muestra una clara correlaci??n entre el pasado.
+Tiene un coeficiente que no es distinto de cero.
+
+Dickey-Fuller
+```{r}
+acf(consump$gc, na.action=na.omit)
+```
+```{r}
+tsgc <- ts(consump$gc, start = c(1959), freq = 1)
+tsgc <- ur.df(na.omit(tsgc), lags = 4, selectlags = "BIC", type = "trend")
+summary(tsgc)
+```
+
+Rechazamos la primera prueba y por lo tanto determinamos que no hay ra??z unitaria.
+
+
+
+ii)
+```{r}
+i3_1 <- c(lag(consump$i3))
+inf_1 <- c(lag(consump$inf))
+Mod11_7 <- update(Mod11_7, . ~ . + gy_1 + i3_1 + inf_1)
+summary(Mod11_7)
+linearHypothesis(Mod11_7, c("gy_1", "i3_1", "inf_1"))
+```
+individualmente no son significativas ni en conjunto. El p-valor de la prueba F es de 0.2315, lo qeu significa que no son nada significativas.
+
+
+iii)
+el p-valor aumenta, lo que significa que la variable gc_1 perdi?? siginificatividad con las nuevas variables.
+
+
+iv)
+
+
+
+
+Ejercicio 8
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/phillips.RData")
+phillips <- data
+
+Mod11_8 <- lm(data = phillips, unem ~ unem_1)
+summary(Mod11_8)
+
+```
+La tasa de desempleo en el 2003 fue de 6.0, si metemos ese valor en el unem_1 para que unem sea la tasa de desempleo del 2004 tendr??amos que unem2004= 1.48968+0.74238(6), la predicci??n que har??amos para la tasa de desempleo del 2004 ser??a de 5.94396. Revisamos la tasa de desempleo en Estados Unidos en el 2004 y fue de 5.5. El modelo sobreestim?? la tasa por 0.44396.
+
+
+ii)
+```{r}
+inf_2 <- c(NA, diff(phillips$inf_1))
+Mod11_8ii <- update(Mod11_8, . ~ . + inf_1)
+summary(Mod11_8ii)
+
+```
+inf_1 s?? es significativa
+
+iii)
+La tasa de desempleo en el 2003 fue de 6.0, si metemos ese valor en el unem_1 para que unem sea la tasa de desempleo del 2004 y tomamos el valor de inf2003 de 2.3 tendr??amos que unem2004= 1.29642+0.64948(6)+0.18301(2.3), la predicci??n que har??amos para la tasa de desempleo del 2004 ser??a de 5.614223. La tasa de desempleo en Estados Unidos en el 2004 y fue de 5.5. El modelo hace una mejor predicci??n que el modelo que ignora la tasa de inflaci??n, sin embargo sigue sobreestimando la tasa de desempleo del 2004 por 0.114223
+
+
+
+Ejercicio 9
+
+```{r}
+load("datos/Wooldrigde_data/R data sets for 5e/traffic2.RData")
+traffic2 <- data
+acf(traffic2$prcfat)
+acf(traffic2$unem)
+
+```
+
+prcfat parece no tener raiz unitaria, pues su ACF de ordern 1 esta por debajo de 0.8, pero unem si parece tener raiz unitaria, por lo tanto vamos a hacer la prueba Dickey Fuller
+
+```{r}
+
+#AR(1)
+ModAR1_11_9 <- lm(data = traffic2, prcfat ~ prcfat_1)
+summary(ModAR1_11_9)
+#Dickey Fuller
+stprfcat <- ts(traffic2$prcfat, start = c(1981), freq = 12)
+stprfcat_DF <- ur.df(stprfcat, lags = 4, selectlags = "BIC", type = "trend")
+summary(stprfcat_DF)
+
+```
+Nos da un valor de ?? de 0.70939 y hacemos la prueba de Dickey Fuller y concluimos que no hay ra??z unitaria en la variable prcfat.
+Ahora para desempleo hacemos lo mismo:
+```{r}
+#AR(1)
+unem_1 <- c(lag(traffic2$unem))
+
+ModAR1_11_9i <- lm(data = traffic2, unem ~ unem_1)
+summary(ModAR1_11_9i)
+#Dickey Fuller
+stunem <- ts(traffic2$unem, start = c(1981), freq = 12)
+stunem_DF <- ur.df(stunem, lags = 4, selectlags = "BIC", type = "trend")
+stunem_DF <- ur.df(stunem, lags = 4, selectlags = "BIC", type = "drift")
+stunem_DF <- ur.df(stunem, lags = 4, selectlags = "BIC", type = "none")
+summary(stunem_DF)
+
+```
+Al realizar la prueba de Dickey Fuller, no se rechaza h0 en ninguna de las 3 por lo tanto nos dice que si hay ra??z unitaria.
+
+
+ii)
+```{r}
+traffic2 <- traffic2 %>% mutate(cprcfat = c(NA,diff(prcfat)) , cunem = c(NA,diff(unem)))
+model11_09 <- lm(data = traffic2, cprcfat ~ t + feb + mar + apr + may + jun + jul + aug + sep + oct + nov + dec + wkends + unem + spdlaw + beltlaw + cunem)
+summary(model11_09)
+```
+iii)Este modelo pierde bastante significacion comparado con el anterior que no tenia en cuenta las diferencias. por tal razon no siempre una serie que aparenta raiz unitaria se puede expresar en primeras diferencias.
+
+
+
+
+
+
+
+
+Ejercicio 10
+
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/phillips.RData")
+phillips <- data
+Mod11_10 <- lm(data = phillips, cinf ~ unem)
+summary(Mod11_10)
+
+```
+El intercepto pasa de 3.03 con una se 1.38 a 2.82 con una se de 1.22. Estad??sticamente son iguales
+
+ii)
+
+La tasa natural de desempleo se calcula como ??=??0/-??1
+Eso nos da 5.4641, contra los 5.58 que marcaba en el ejemplo 11.5.
+
+iii)
+```{r}
+acf(phillips$unem)
+```
+
+```{r}
+#Dickey-Fuller
+ts_unem <- ts(phillips$unem, start = c(1948), freq = 1)
+unem_DF <- ur.df(ts_unem, lags = 4, selectlags = "BIC", type = "trend")
+summary(unem_DF)
+unem_DF <- ur.df(ts_unem, lags = 4, selectlags = "BIC", type = "drift")
+summary(unem_DF)
+unem_DF <- ur.df(ts_unem, lags = 4, selectlags = "BIC", type = "none")
+summary(unem_DF)
+
+```
+Rechazo H0 en el drift a un nivel del 95%, por lo tanto unem, no tiene ra??z unitaria.
+
+Tambi??n podr??amos regresar unem ~ unem_1 y ver si es significativo
+```{r}
+Mod11_10iii <- lm(data = phillips, unem ~ unem_1)
+summary(Mod11_10iii)
+```
+
+iv)
+```{r}
+Mod11_10iv <- update(Mod11_10, . ~ cunem)
+summary(Mod11_10iv)
+```
+Si se hace el modelo con la primera diferencia, cunem, se obtiene una R^2 de 0.1348 que es mayor que la R^2 de 0.1037 del modelo de unem.
+
+
+Ejercicio 11
+
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/okun.RData")
+okun <- data
+Mod11_11 <- lm(data = okun, pcrgdp ~ cunem)
+summary(Mod11_11)
+
+
+```
+No fue el 3 y el 2 exactamente pero s?? se acerca a esos valores, dando un valor de ??0 de 3.3444 y de ??1 -1.8909.
+
+ii)
+H0: ??1= -2
+t= [(-1.8909)-(-2)]/0.1627 = 23.9145***
+Eso es significativo a cualquier nivel
+Se acepta H0, por lo tanto ??1=-2
+
+iii)
+??0: ??0=3
+t= (3.3444-3)/0.1627 = 2.116779
+??
+iv)
+```{r}
+linearHypothesis(Mod11_11, c("(Intercept) = 3", "cunem = -2"))
+```
+los datos respaldan la ley de okum, y en la prueba f no hay suficiente evidencia para rechazar que b0 = 3 y b1 = -2
+
+
+Ejercicio 12
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/minwage.RData")
+minwage <- data
+acf(na.omit(minwage$gwage232))
+```
+
+```{r}
+gwage232_1 <- c(lag(minwage$gwage232))
+AR1_11_12 <- lm(data = minwage, gwage232 ~ gwage232_1)
+summary(AR1_11_12)
+tsgwage <- ts(minwage$gwage232, start = 1, freq = 12)
+tsgwageDF <- ur.df(na.omit(tsgwage), lags = 4, selectlags = "BIC", type = "trend")
+summary(tsgwageDF)
+
+```
+AR(1) nos da que ??=0, despu??s por medio de Dickey Fuller concluimos que no hay ra??z unitaria.
+
+ii)
+```{r}
+Mod11_12 <- lm(data = minwage, gwage232 ~ gwage232_1 + gmwage + gcpi)
+summary(Mod11_12)
+```
+Si mantenemos fijo el crecimiento en el salario del ??ltimo mes y el crecimeitno en el IPC, un incremetno en el salario m??nimo federal da como resultado un incremento contempor??neo del salario de .1518459***?. Se da el incremento porque el salario m??nimo federal es significativo al 0.001, lo que significa que gwage232 es fuertemente dependiente del salario m??nimo federal.
+
+iii)
+```{r}
+gemp232_1 <- c(lag(minwage$gemp232))
+Mod11_12iii <- update(Mod11_12, . ~ . + gemp232_1)
+summary(Mod11_12iii)
+```
+gemp232_1 s?? es estad??sticamente significativo. 
+
+iv)
+```{r}
+Mod11_12iv <- update(Mod11_12, . ~ . -gwage232_1)
+summary(Mod11_12iv)
+
+```
+El coeficiente de gmwage cambia muy poco, sin las dos variabels rezagadas, el valor en el modelo sin rezagos es de 0.1505714 y con los dos rezagos es de 0.152707. 
+
+v)
+```{r}
+Mod11_12v <- lm(data = minwage, gmwage ~ gwage232_1 + gemp232_1)
+summary(Mod11_12v)
+```
+Hay una relaci??n lineal muy baja entre gmwage y gwage232_1 y gemp232_1, tienen una R^2 de 0.00392.
+
+Ejercicio 13
+i)
+```{r}
+load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/beveridge.RData")
+beveridge <- data
+acf(beveridge$urate)
+```
+```{r}
+library(urca)
+AR1_11_13 <- lm(data = beveridge, urate ~ urate_1)
+summary(AR1_11_13)
+tsurate <- ts(beveridge$urate, start = 2010-12, frequency = 12)
+tsurateDF <- ur.df(tsurate, lags = 4, selectlags = "BIC", type = "trend")
+summary(tsurateDF)
+tsurateDF <- ur.df(tsurate, lags = 4, selectlags = "BIC", type = "drift")
+summary(tsurateDF)
+tsurateDF <- ur.df(tsurate, lags = 4, selectlags = "BIC", type = "none")
+summary(tsurateDF)
+```
+Al hacer la prubea AR(1) tenemos que el coeficiente de correlaci??n es ??=0.99, con esto proseguimos a realizar las pruebas Dickey-Fuller y comprobamos que hay ra??z unitaria en urate.
+
+ii)
+```{r}
+acf(beveridge$vrate)
+```
+```{r}
+AR1_11_13ii <- lm(data = beveridge, vrate ~ vrate_1)
+summary(AR1_11_13ii)
+tsvrate <- ts(beveridge$vrate, start = 2010-12, frequency = 12)
+tsvrateDF <- ur.df(tsvrate, lags = 4, selectlags = "BIC", type = "trend")
+summary(tsvrateDF)
+tsurateDF <- ur.df(tsvrate, lags = 4, selectlags = "BIC", type = "drift")
+summary(tsvrateDF)
+tsurateDF <- ur.df(tsvrate, lags = 4, selectlags = "BIC", type = "none")
+summary(tsvrateDF)
+```
+Al hacer la prubea AR(1) tenemos que el coeficiente de correlaci??n es ??=0.92, con esto proseguimos a realizar las pruebas Dickey-Fuller y comprobamos que hay ra??z unitaria en vrate.
+
+iii)
+```{r}
+Mod11_13iii <- lm(data = beveridge, urate ~ vrate)
+summary(Mod11_13iii)
+```
+Hay una realci??n negativa, vrate tiene un coeficiente de -3.7414
+
+iv)
+Los intervalos de confianza no funcionan porque las dos variables tienen un coeficiente de correlaci??n casi de ?????1, adem??s con la prueba de Dickey Fuller vimos que tienen ra??z unitaria. ???
+
+v)
+```{r}
+curate <- c(NA, diff(beveridge$urate))
+cvrate <- c(NA, diff(beveridge$vrate))
+Mod11_13v <- lm(data = beveridge, curate ~ cvrate)
+summary(Mod11_13v)
+
+```
+Si hacemos el modelo con las primeras diferencias deja de ser significativa la relaci??n que hay entre vrate y urate. 
+
+

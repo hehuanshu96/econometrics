@@ -1,0 +1,607 @@
+---
+title: "Capítulo 13"
+output:
+  pdf_document
+author:
+- Andres de Alba, Cristian Cárdenas, Anderson Martínez, Gissela Rodríguez
+tags: [Econometría II]
+subtitle: 'Econometría II, Nelson Muriel'
+date: "`r format(Sys.time(), '%B %Y')`"
+---
+
+##ejercicio 1
+
+
+```{r message=FALSE, warning=FALSE}
+library(plm)
+library(car)
+library(stats)
+library(stargazer)
+library(stats)
+library(dplyr)
+library(lmtest)
+library(sandwich)
+```
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+
+load("~/Dropbox/Econometria/datos/wooldrigde6/fertil1.RData")
+fertil1 <- data
+rm('data','desc')
+mod13_1 <- lm(data = fertil1, kids ~ educ + age + I(age^2) + black + east + 
+              northcen + west + farm + othrural + town +
+              smcity + y74 + y76 + y78 + y80 + y82 + y84 )
+car::linearHypothesis(mod13_1, c('farm', 'othrural', 'town', 'smcity'))
+```
+
+>i) El estadístico F de significación conjunta para las variables de condiciones del entorno a la edad de 16 años tiene un p-valor de 0.33 por lo cual no se puede rechazar la hipotesis de que todas valen cero.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+
+linearHypothesis(mod13_1, c('east', 'northcen', 'west'))
+
+```
+
+>ii) Las varibles de región del país a los 16 años tienen un p-valor para la prueba F de 0.029 por lo tanto si son signiticantes a un nivel del 97%. 
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+u <- residuals(mod13_1)
+test_model <- lm(I(u^2) ~  y74 + y76 + y78 + y80 + y82 + y84, data = fertil1 )
+linearHypothesis(test_model, c('y74', 'y76', 'y78', 'y80', 'y82', 'y84'))
+
+```
+
+>iii) Existe suficiente evidencia estadística para aceptar heterocedasticidad en los errores. 
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod13_1 <- update(mod13_1, . ~ . + I(y74*educ) + I(y76*educ) + I(y78*educ)
+                  + I(y80*educ) + I(y82*educ) + I(y84*educ))
+summary(mod13_1, signif.stars = true, digits = 3)$coefficients
+car::linearHypothesis(mod13_1, c("I(y74 * educ)", "I(y76 * educ)", "I(y78 * educ)", "I(y80 * educ)",
+                                 "I(y82 * educ)", "I(y84 * educ)"))
+```
+
+>iv) Estos terminos representan la propensión del cambio de la educación en cada año. pero no son conjuntamente significativos. 
+
+##Ejercicio 2
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load("~/Dropbox/Econometria/datos/wooldrigde6/cps78_85.RData")
+cps78_85 <- data
+rm('data','desc')
+mod13_2 <- lm(data = cps78_85, lwage ~ y85 + educ + y85educ + exper + expersq 
+              +union + female + y85fem)
+summary(mod13_2)$coefficients
+```
+
+>i)El coeficiente $y85$ en la ecuación $13.2$ refleja el control de el año 1985 en la
+base de datos, a lo que representa la proporción de cambio del salario a través 
+del tiempo correspondiente a 1985 cuando son hombres o en su caso la variable famale
+tiene el valor 0 al igual que las demás variables binarias, en tanto a su relevancia
+sería pequeña debido a que sólo explicaría una parte muy pequeña de la muestra.
+
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod13_22 <- lm(data=cps78_85, lwage~ y85 + educ + I(y85*I(educ-12)) + exper
+               + expersq + union + female + y85fem)
+summary(mod13_22)$coefficients
+```
+
+>ii) Queriendo saber cúal es el incremento porcentual en el salario de un hombre con
+12 años de educación, entonces sería el cambio natural por el tiempo más el
+cambio porcentual al tener 12 años de educación, como cambia el intercepto en 1985 
+para un hombre con 12 años de educación, a lo el coeficiente estimado de y85 
+con estas especificaciones es de .339 con una alta significatividad.
+$0.3393\pm(1.96*0.03401)$
+$$IC_{95} (0.2726404, 0.4059596)$$
+El incremento nominal es de $33.93\%$ y el intervalo de confianza al $95\%$ es de $$IC_{95} (0.2726404, 0.4059596)$$ que es $27.26\%$ a $40.60\%$
+
+
+>iii) 
+ecuación de modelo nominal
+$y85\; 0.118\;  se\;\simeq{.124}$
+y la ecuación de modelo real
+$$y85\; -0.383\; se\;\simeq{.124}$$
+>aquí lo que muestra la disminución de los salarios reales a través de 1978 a 1985. a diferencia de la nominal que hay una aumento en los salarios, a lo que se ve que a subido pero no proporcional al aumento de los precios.
+
+
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library(dplyr)
+cps78_85 <- cps78_85 %>% mutate(wage=exp(lwage))
+cps78_85 <- cps78_85 %>% mutate(rwage= if_else(year == 78, wage, wage/1.65))
+mod13_2r <- lm(data=cps78_85, log(rwage)~y85 + educ + y85educ + exper
+               + expersq + union + female + y85fem)
+summary(mod13_2r)$coefficients
+
+```
+
+>iv)
+modelo 13.2
+Residual standard error: $0.4127$ on $1075$ degrees of freedom
+Multiple R-squared:  $0.4262$,	Adjusted R-squared:  $0.4219$
+
+>modelo 13.2(iii)
+Residual standard error: $0.4127$ on $1075$ degrees of freedom
+Multiple R-squared:  $0.3562$,	Adjusted R-squared:  $0.3514$
+
+>Comparando el $R^2$ del modelo con datos reales es de $.3562$ y para el nominal $.4262$, así se diferencian por a suma de los totales al cuadrado.
+
+
+>v) Para 1978 había 168 afiliaciones de los 550 trabajadores representando un 30.5% afiliados, y para 1985 con una muestra de 534, solo habia 96 trabajadores afiliados, representando un 18%.
+haciendo la comparación en porcentaje cayeron las afiliaciones por 12.5% en 7 años
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod13_2u <- lm(data = cps78_85, lwage ~ y85 + educ + y85educ + exper + expersq 
+              +union + y85union + female + y85fem)
+summary(mod13_2u)$coefficients
+```
+
+>iv) $y85union$ al parecer tiene un disminución del alrededor de $.0004$ en la prima salarial, sin embargo al revisar su significatividad, notamos que su estadístico $t$ es muy bajo, a lo que no se rechaza $H0$, considerando que el coeficiente del término de interacción es 0
+
+> vii) Se considera que no tiene algún inconveniente, como marca de manera explicativa, solo representa que hay una disminución en las personas que perciben este beneficio
+
+##ejercicio 3
+
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library('stats')
+library('car')
+load("~/Dropbox/Econometria/datos/wooldrigde6/kielmc.RData")
+kielmc <- data
+rm('data', 'desc')
+mod3_1 <- lm(data = kielmc, lprice ~ y81 + ldist + y81ldist)
+summary(mod3_1)$coefficients
+
+```
+
+>i)
+>Para $\delta_1$ el signo es positivo es decir que si la vivienda está más lejana al 
+incinerador, el precio de esta aumenta, y siendo $\beta_1$ positivo quiere decir que el
+incinerador fue construido lejos de las casas más valiosas.
+
+>ii)
+$y81*\log(dist)$ representa el cambio en el valor de las casas cuando
+el incinerado ya esta construido, dependiendo a la lejanía de la finca con el 
+incinerador.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod3_2 <- lm(data = kielmc, lprice ~ y81 + ldist + y81ldist + age + agesq 
+              + rooms + baths + lintst + lland + larea )
+summary(mod3_2)$coefficients
+
+
+```
+
+>iii)
+Al realizar las demás características de valuación de las casas, se muestran
+que al parecer, las apreciaciones que están en función del incinerador, no son 
+estadísticamente significativas, en realidad, el valor de las casas es más 
+relevante por la cantidad de baños, el área y la antigüedad, que por la cercanía
+o la existencia del incinerador.
+
+>iv)
+Es posible que entre las mismas variables exista una cercana tendencia 
+que capte e interprete significatividad, sin embargo al meter las demás variables
+que explican más a detalle el valor de las casas, no existe estadísticamente 
+una relación del precio de las casas.
+
+
+##Ejercicio 5
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library('stats')
+library('car')
+load("~/Dropbox/Econometria/datos/wooldrigde6/rental.RData")
+rental <- data
+rm('data','desc')
+mod_rental <- lm(data=rental, lrent ~ y90 + lpop + lavginc + pctstu)
+summary(mod_rental)$coefficients
+
+
+```
+
+>i) 
+Para el coeficiente de y90, que es de .262 y es significativo, quiere decir
+que manteniendo todo fijo, el efecto del tiempo en las rentas crecio en 10 años 
+al rededor de un 26%, para pctstu siendo el porcentaje de estudiantes de 
+la poblacion de la ciudad el durante el año escolar es positivo y ademas
+significativo,a lo que hace setido que si incremente en 1% el porcentaje de 
+estudiantes en la ciudad, las rentas aumentaran cerca de medio porciento.
+
+>ii) 
+Bajo el modelo
+$$lrentit = y90t + lpopit + lavgincit + pctstuit + a_i + u_{it}$$ existe la parte de efectos
+fijos que pueden o no estar en los errores lo que puede ocasionar autocorrelación 
+lo que provocaría invalidades en los errores y las t_s no serían correctas.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+rental_pan <- pdata.frame(rental, index = c("city", "year"))
+
+mod_rental_pan <- plm(data=rental_pan,lrent ~ y90 + lpop + lavginc 
+                      + pctstu, model ='fd')
+stargazer(mod_rental_pan, mod_rental, title="Resultados", header=FALSE)
+
+```
+
+>iii)modelo agregado $pctstu\; 0.005044$ , modelo con diferencia $pctstu \; 0.0187151$ apesar que pierde significatividad, el coeficiente aumenta alrededor de un 1.3%, al eliminar los efectos fijos, notamos una mayor fuerza en el aumento de del porcentaje de estudiantes por ciudad.
+
+##Ejercicio 4
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library('stats')
+load("~/Dropbox/Econometria/datos/wooldrigde6/injury.RData")
+injury <- data
+rm('data','desc')
+injuryky <- filter(injury,ky==1)
+mod13_12ky <- lm(data=injuryky, ldurat~ afchnge + highearn + afhigh)  
+mod13_12kyc <- lm(data=injuryky, ldurat~ afchnge + highearn + afhigh + male + married + head + 
+                neck + upextr + trunk + lowback + lowextr + occdis + manuf + construc)
+stargazer(mod13_12ky, mod13_12kyc, title="Resultados", header=FALSE)
+
+```
+
+>i) $afhigh\;0.191$ , $afhigh\;0.231$, agregando las variables de control hay un aumento de alrededor de 5%, el tiempo que reciben una compensación laboral, después del aumento en el límite de ganancias por semanas que cubría por compensación laborales para las personas con mayores ganancias, es decir que es propenso a que lo que más ganan sean cubiertos por mas semanas si sufren un accidente. 
+
+>ii) reportando una $R^2$ de $0.0412$, $R^2 Adj:\;0.03868$. representando una explicación de $\log(Durat)$ de un 4.1%, a lo que se puede considerar que para explicar $\log(Durat)$ es más complicado y puede que haya terminamos que estemos dejando fuera del modelo.  
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+injurymi <- filter(injury,mi==1)
+mod13_12mi <- lm(data=injurymi, ldurat~ afchnge + highearn + afhigh )
+summary(mod13_12mi)$coefficients
+```
+
+>iii) $afhigh\; 0.192$ hay un aumento en comparación a los datos de KY sin embargo no son significativos al 10%, puede ser además porque la muestra de kentucky es mucho mayor a la de Michigan.
+
+##ejercicio 6
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load("~/Dropbox/Econometria/datos/wooldrigde6/crime3.RData")
+crime3 <- data
+
+mod13_6 <- lm(data = crime3, lcrime ~ d78 + clrprc1 + clrprc2)
+mod13_6aux <- lm(data = crime3, lcrime~ d78 + clrprc1 + I(clrprc1 + clrprc2))
+mod13_6iii <- lm(data = crime3, clcrime ~ cavgclr)
+stargazer(mod13_6, mod13_6aux, mod13_6iii, title="Resultados", header=FALSE)
+
+```
+
+En el modelo auxiliar vimos que $\theta_1 = 0$ por lo tanto comprobamos que $\beta_1 = \beta_2$
+
+##ejercico 7
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library(dplyr)
+library(car)
+load("~/Dropbox/Econometria/datos/wooldrigde6/gpa3.RData")
+gpa4 <- data
+rm('data','desc')
+mod1 <- lm(data=gpa4, trmgpa ~  spring + sat + hsperc + female + black + white + frstsem +
+           tothrs + crsgpa + season)
+summary(mod1)$coefficients
+```
+
+>i) $season\; -0.0273$, representa que cuando es temporada deportiva, el promedio de los estudiantes cae .027 puntos, no es estadísticamente significativo, 
+
+>ii)si la habilidad no capturada está correlacionada con $season$, entonces estará sesgado y será inconsistente
+  
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library(plm)
+
+gpa4.pan <- pdata.frame(gpa4, index = c("id","term"))
+mod1df <- plm(trmgpa ~  spring + sat + hsperc + female + black + white + frstsem 
+                + tothrs + crsgpa + season, data = gpa4.pan )
+stargazer(mod1df, title="Resultados", header=FALSE)
+```
+
+>iii)Desaparecen las variables sat, hisperc, female, black, white.
+>Ahora si el deporte está en temporada  de ser en datos agregados season -0.0273 a diferenciados season -0.0645, sin embargo sigue siendo no significativo. 
+
+>iv)Posiblemente, considerando que exista un proceso de elección de clases, el hecho de meter más o menos materias por semestres podría influir en el desempeño, tanto escolar, como deportivo y además en el promedio 
+
+##ejercicio 8
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load("~/Dropbox/Econometria/datos/wooldrigde6/vote2.RData")
+vote2 <- data
+rm('data')
+mod1c <- lm(data= vote2, cvote~ clinexp + clchexp + cincshr)
+summary(mod1c)$coefficients
+```
+
+>i) el intercepto dado por -2.56 es altamente significativo y la parte total de gastos  de campaña para los titulares del cargo con un coeficiente de 
+cincshr 0.156 a lo que es significativo al 1% 
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+linearHypothesis(mod1c, c("clinexp","clchexp"))
+```
+
+>ii) No rechaza H0, es decir que conjuntamente no son significativas, al igual que de manera individual, con un p-value de 0.2236
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod2c <- lm(data= vote2, cvote~cincshr)
+summary(mod2c)$coefficients
+```
+
+>iii) Un aumento del 10 por ciento en el total del gasto de campaña significaría un aumento de 2.18% en los votos al candidato en cargo
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+vote2r <- filter(vote2,rptchall==1)
+mod2r <- lm(data=vote2r, cvote~cincshr)
+summary(mod2r)$coefficients
+```
+
+>iv) En este caso cincshr 0.092 a lo que un aumento en el 10% en el gasto del candidato a cargo, representaría un .9% de votos a su favor, sin embargo al tener una desviación estándar de .0847, considerado alto en este caso, no muestra significatividad, además que la determinación del voto a un candidato es más complejo, y el tratar de conocer la propensión de voto por peso gastado puede que esté sesgado y otro puento es la escasez de datos, es una muestra muy pequeña al solo tratar de revisar el comportamiento contra opositores que repiten. 
+
+##ejercicio 9
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load("~/Dropbox/Econometria/datos/wooldrigde6/crime4.RData")
+crime4 <- data
+rm('data')
+
+crime4.pan <- pdata.frame(crime4, index = c("county","year"))
+
+mod1c <- plm(data=crime4.pan,lcrmrte ~ d82 + d83 + d84 + d85 + d86 + d87 + lprbarr 
+             + lprbconv + lprbpris + lavgsen + lpolpc, model = "fd")
+
+mod2c <- plm(data=crime4.pan,lcrmrte ~ d82 + d83 + d84 + d85 + d86 + d87 + lprbarr 
+             + lprbconv + lprbpris + lavgsen + lpolpc + lwcon + lwtuc + lwtrd 
+             + lwfir + lwser + lwmfg + lwfed + lwsta + lwloc, model = "fd")
+
+stargazer(mod1c, mod2c, title="Resultados", header=FALSE)
+```
+
+>i) Han variado de manera mínima los coeficientes, sin embargo si ha habido cambio en la significatividad de los parametros como: 
+
+>d83 y d84 perdieron signifiatividad hasta .5%
+>d85 y d86 perdieron su significatividad. 
+
+>y las variables de Criminalidad su variación es minima y no altera su significatividad
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library(car)
+linearHypothesis(mod2c, c("lwcon","lwtuc","lwtrd","lwfir","lwser","lwmfg",
+                          "lwfed", "lwsta", "lwloc"))
+```
+
+>ii) Son conjuntamente no significativo, al no rechazar H0 siendo las variables no son distintas a 0
+
+##ejercicio 10
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library(stats)
+load("~/Dropbox/Econometria/datos/wooldrigde6/jtrain.RData")
+jtrain <- data
+rm("data")
+
+library(plm)
+
+jtrain.pan <- pdata.frame(jtrain, index = c ("fcode","year"))
+mod2c <- plm(data=jtrain.pan,hrsemp~d88+d89+grant+grant_1+lemploy, model = "fd" )
+
+summary(mod2c)
+
+
+```
+
+>i)fueron usadas 225 observaciones... 
+
+>ii)Es siginificativo el valor de grant y trata de decir que al recibir la el subsidio lo que provoca es que estaria empeorando el funcionamiento de la operación y desperdiciarias 32.36 más que si no lo tuvieras. 
+
+>iii) puede que haya sido su poca variabilidad al mmomento de hacer las diferencias, lo que provocaria que si variabilidad estadistica se muy alta y este sea impresiso
+
+##Ejericio 11
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load("~/Dropbox/Econometria/datos/wooldrigde6/mathpnl.RData")
+math_pane <- pdata.frame(data, index = c('distid','year'))
+model11ii <- plm(math4 ~ year + lrexpp + lenrol + lunch, data = math_pane, model = 'fd')
+model11.3 <- plm(math4 ~ year + lrexpp + lag(lrexpp) + lenrol + lunch , data = math_pane, model = 'fd')
+stargazer(model11ii,model11.3, title="Resultados", header=FALSE)
+
+```
+
+>ii) En el primer modelo, si el gasto por alumno se incrementa en 10% generara una disminución en la tasa de quienes aprueban matemáticas de 3.5/10 $\simeq{0.35}\%$ 
+
+>iii) El coeficiente que se agregó para $lrexpp_{t-1}$ es sginificativo a cualquier nivel y es de 4.7 míentras que el gasto en el año actaul se vuelve insignificante. Se puede decir que un aumento del gasto real de 100% en el año anterior incrementa en $\simeq{4.7}$ puntos la tasa de aprobados.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+model11.3HAC <- plm(math4 ~ year + lrexpp + lag(lrexpp) + lenrol + lunch , 
+                 data = math_pane, model = 'fd', vcov = vcovNW)
+stargazer(model11.3HAC,model11.3, title="Resultados", header=FALSE)
+```
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+#Errores estándar robustos a heterocedasticidad 
+summary(model11.3, vcov = vcovHC)$coefficients
+```
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+#según la documentación de plm::vcovNW asi deberia funcionar para
+#errores estándar a heterocedasticidad y autocorrelación
+#pero da Error in if (names(u)[i] == names(v)[j]) {: missing value where TRUE/FALSE needed
+#coeftest(model11.3, vcov=vcovNW)
+
+```
+
+##Ejercicio 12
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load('~/Dropbox/Econometria/datos/wooldrigde6/murder.RData')
+murder_pane <- pdata.frame(data, index('id','year'))
+model12i <- plm(mrdrte ~ year + exec + unem, model="pooling" ,data = murder_pane)
+summary(model12i)$coefficients
+
+```
+
+> i) Según esta regresión, el efecto de a pena de muerte no disminuye el número de homicidios, por el contrario los incrementa en 0.16 pero no es significativo estadísticamente.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mur90 <- filter(murder_pane, year==90)
+mur93 <- filter(murder_pane, year==93)
+mur_diff <- mur90 - mur93
+model12Fd <- lm(mrdrte ~ d93 + exec + unem, data =mur_diff)
+summary(model12Fd)$coefficients
+
+```
+
+>ii) En este modelo $exec$ cambia de signo y se vuelve significativo por lo tal si se puede decir que tiene un efecto negativo en el número de homicidios. 
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+e <- residuals(model12Fd)
+BP <-lm(I(e^2) ~  exec + unem, data = mur_diff)
+linearHypothesis(BP, c('exec','unem'))
+fit <- model12Fd$fitted.values
+white.test<- lm(I(e^2) ~ fit + I(fit^2))
+linearHypothesis(white.test, c('fit','I(fit^2)'))
+```
+
+>iii) No existe suficiente evidencia estadística para decir que hay heterocedasticidad en el modelo de primera diferencia, los p-value de las pruebas de Breusch Pagan y white son de 0.55 y 0.56 respectivamente. 
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+coeftest(model12Fd, vcov= vcovHC)
+```
+
+>iv) El t Robusto a HC es -2.62 como se esperaba es más grande que el anterior porque los intervalos robustos son más amplios, pero no hace falta hacer estimaciones robustas por que no se encontró heterocedasticidad.
+
+>vi) no hace falta hacer estimaciones robustas por que no se encontró heterocedasticidad por tal razon se prefiere el estadístico usual.
+
+##Ejercicio 13
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+load("~/Dropbox/Econometria/datos/wooldrigde6/wagepan.RData")
+wage.pan <- data
+rm(data)
+
+mod1 <- lm(lwage ~ (educ)*factor(year) +union , data = wage.pan)
+summary(mod1)$coefficients
+
+```
+
+>i) las variables de tiempo principalmente, además que las otras variables cambian poco en el tiempo.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+wage.panpan <- pdata.frame(wage.pan,index = c("nr","year"))
+
+mod1c <- plm(data=wage.panpan,lwage ~ (educ) * factor(year)
+             +union, model ="fd" )
+coef <- names((mod1c)$coefficients)
+linearHypothesis(mod1c,coef[9:15])
+```
+
+>ii) El p-valor de la prueba F es 0.95 por lo cual no hay evidencia de que el efecto de la educación en el salario cambie en el tiempo analizado. Al hacer el modelo de diferencias, se anula la variable educación.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod1c <- plm(data=wage.panpan,lwage ~ (educ) * factor(year)
+             +union, model ="fd" )
+coef <- names((mod1c)$coefficients)
+#Se realiza la prueba solo robusta a heterocedasticidad por que con vcovNW no funciona
+#y con vcovSCC da valores muy raros
+linearHypothesis(mod1c,coef[9:15], .vcov = vcovHAC)
+```
+
+>iii) Haciendo la prueba con estimadores robustos a heterocedasticidad, el p-valor de la prueba F es de 0.42 por lo cual tampoco hay evidencia de que el efecto de la educación sobre el salario cambie en los periodos.
+
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+mod1c <- plm(data=wage.panpan,lwage ~ (educ) * factor(year)
+             +union * factor(year), model ="fd" )
+summary(mod1c)$coefficients
+
+```
+
+##Ejercicio 16
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+county<-county <- data.frame(read.csv("~/Dropbox/Econometria/datos/wooldrigde6/countymurders.csv"))
+sum = c(
+  'Mean murdrate' = round(mean(county$murdrate),3),
+  'Sd murdrate'   = round(sd(county$murdrate),3),
+  '%murdrate = 0' = paste(round(nrow(filter(county, murdrate == 0))/nrow(county),4)*100,'%'),
+  'Mean execs'    = round(mean(county$execs),3),
+  'Sd execs'      = round(sd(county$execs),3),
+  '%execs = 0'    = paste(round(nrow(filter(county, execs == 0))/nrow(county),4)*100,'%'),
+  'max exces'     = max(county$execs),     
+  'nrow exces > 0'= nrow(filter(county, execs > 0))
+       )
+sum
+
+```
+
+>i & ii) 
+La media de ejecuciones por pena de muerte es muy baja por que de los 2197 condados únicamente se aplicó esta condena en 205 y el máximo fue de 7. Si no se tuvieran en cuenta los condados que no la aplicaron, el promedio sería de 1.25.
+
+>iii)
+Para poder aplicar sección cruzada por MCO se debe asumir que el error idiosincrático no está correlaciondo con las variables explicativas.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+library(stringr)
+i=0
+teta = NULL
+for(year in unique(county$year)){
+  teta[i<- i+1]= paste("y",str_sub(year, start= -2), sep = "_")   
+  county[teta[i]] <-
+    ifelse(county$year == year, 1, 0)
+}
+years <- select(county, c(teta[2:16]))
+model16_4 <- lm(county$murdrate ~. + county$execs +
+                lag(county$execs) + county$percblack + county$percmale 
+                + county$perc1019 + county$perc2029, data = years)
+summary(model16_4)$coefficients
+```
+
+>iv) En esta regresión, se observa que manteniendo los demás factores constantes, por cada pena capital, se incrementan los asesinatos en 0.16. Lo que puede estar pasando aquí es que los otros factores que se encuentran en el error idiosincrático inciden más que el número de ejecuciones que se realicen. 
+
+>v) Es raro que tantos parámetros sean tan significativos, seguramente el modelo tiene problemas de autocorrelación y esto hace que se subestime los errores estándar y a su vez se sobre estime la significatividad de los parámetros.
+
+
+```{r message=FALSE, warning=FALSE, results='asis'}
+county_pane <- pdata.frame(county, index = c('countyid','year'))
+model13_fd <- plm(murdrate ~ year + execs + lag(execs) + percblack + percmale + 
+    perc1019 + perc2029, data = county_pane, model = 'fd')
+summary(model13_fd)$coefficients
+```
+
+>vi) los estimadores de $execs$ y $execs_{t-1}$ son $\simeq{.003}$ y $\simeq{.028}$ es evidente a simple vista la diferencia con el modelo de sección cruzada, incluso cambia el signo.
+
+>vii) No existe suficiente evidencia estadística para decir que la pena de muerte influye significativamente en el número de homicidios tanto $execs$ y $execs_{t-1}$ tienen valores $T$ muy pequeños. 

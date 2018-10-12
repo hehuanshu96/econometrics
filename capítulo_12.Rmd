@@ -1,0 +1,588 @@
+---
+title: "Capítulo 12"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+author:
+- Andres de Alba, Cristian Cárdenas, Anderson Martínez, Gissela Rodríguez
+tags: [Econometría II]
+subtitle: 'Econometría II, Nelson Muriel'
+date: "`r format(Sys.time(), '%B %Y')`"
+---
+```{r library and functions, echo=TRUE, message=FALSE, warning=FALSE}
+#paquetes 
+library(lmtest)
+library(zoo)
+library(orcutt)
+library(car)
+library(dplyr)
+library(knitr)
+library(prais)
+library(MASS)
+library(sandwich)
+library(zoo)
+table <- function(model){
+  kable(summary(model)$coefficients, format = "markdown", digits = 3, align = c('c'))
+  
+}
+environment(table)
+```
+
+##Ejercicio 1
+
+```{r Ejercicio 1}
+
+load("datos/Wooldrigde_data/R data sets for 5e/fertil3.RData")
+fertil3 <- data
+rm(data,desc)
+resid_model1 <- residuals(lm(data = fertil3, cgfr ~ cpe + cpe_1 + cpe_2))
+Box.test(resid_model1, lag = 1, type = 'Ljung')
+
+
+```
+###Conclusión 1
+>Se rechaza que los errores se distribuyen de forma independiente, es decir si hay autocorrelación de orden 1.
+por tanto, incluso utilizando diferencias, los errores están correlacionados.
+
+##Ejercicio 2
+```{r Parte i}
+
+load("datos/Wooldrigde_data/R data sets for 5e/wageprc.RData")
+wageprc <- data
+list <- wageprc[7:19]
+model11_5 <- lm(wageprc$gprice ~ ., data = list)
+u <- residuals(model11_5)
+testAr <- lm(u ~ lag(u))
+table(testAr)
+Box.test(u, lag = 5)
+
+
+```
+###Conclusión i
+>No se puede aceptar que $\rho=0$, por lo tanto el modelo tiene autocorrelación, se valida la conclusión aplicando el test Box-Ljung y el resultado es el mismo.
+
+
+```{r Parte ii}
+co_model11_5 <- cochrane.orcutt(model11_5, convergence = 8)
+paste('plp:',sum(co_model11_5$coefficients[2:14]))
+
+
+```
+###Conclusión ii
+>Del modelo anterior se obtiene que la propensión de largo plazo es de 1.11 aproximadamente, esto indica que después de pasar 12 periodos el incremento sostenido en el salario genera un incremento en el índice de precios del 110 %
+
+
+```{r Parte iii}
+model11_5_aux2 <- lm(gprice ~ gwage + I(gwage_1-gwage) + I(gwage_2-gwage) + I(gwage_3-gwage) + I(gwage_4-gwage) + I(gwage_5-gwage) + 
+    I(gwage_6-gwage) + I(gwage_7-gwage) + I(gwage_8-gwage) + I(gwage_9-gwage) + I(gwage_10-gwage) + I(gwage_11-gwage) + I(gwage_12-gwage), data = wageprc)
+model11_5_aux <- cochrane.orcutt(model11_5_aux2, convergence = 8)
+paste('PLP : ', model11_5_aux$coefficients[2], 'STD.Error: ', model11_5_aux$std.error[2])
+
+testPLP_1 <- (model11_5_aux$coefficients[2]-1)/model11_5_aux$std.error[2]
+paste('T Value: ',testPLP_1)
+paste('h0 PLP = 1, h1 PLP != 0')
+pt(0.05, testPLP_1)
+
+
+```
+###Conclusión iii
+>El error estándar calculado mediante una regresión auxiliar presentada anteriormente, es de 0.19 y al hacer la prueba T nos da un valor de 0.57 con un p-value de 0.51 por lo cual no se puede rechazar que la plp es estadísticamente igual a 1. 
+
+##Ejercicio 3
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/inven.RData")
+inven <- data
+Mod11_6 <- lm(data = inven, cinven ~ cgdp)
+table(Mod11_6)
+resid_3 <- residuals(Mod11_6)
+AR1_3 <- lm(resid_3 ~ lag(resid_3))
+table(AR1_3)
+Box.test(resid_3, lag = 1, type = 'Ljung')
+
+```
+
+###Conclusión 
+>No hay pruebas de autoccorrelación residual, por lo tanto no es necesario estimar por medio de Cochrane Orcutt.
+
+
+##Ejercicio 4
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/nyse.RData")
+nyse <- data
+model <- lm(return ~ return_1, data = nyse)
+resid <- residuals(model)
+BP <- lm(I(c(NA,NA,resid^2))~ return_1, data = nyse)
+table(BP)
+sum(fitted.values(BP)<0)
+
+
+```
+###Conclusión
+
+>Hay 12 varianzas condicionales negativas, Hay heterocedasticidad.
+
+###ii)
+```{r}
+BPii <- BP %>% update(.~.+I(return_1^2))
+table(BPii)
+sum(fitted.values(BPii) < 0)
+```
+>Ya ninguna es negativa
+
+###iii)
+```{r}
+h4 <- c(NA, NA, fitted.values(BPii))
+model12_4b <- update(model, weights = 1/h4)
+kable(summary(model12_4b)$coefficients, digits = 3)
+
+```
+
+>$\beta_1 = 0.59$ y ahora es $\beta_1 = 0.03885$ 
+
+###iv)
+```{r}
+ARCH4 <- lm(data = nyse, I(resid^2) ~ I(lag(resid^2)))
+hARCH <- c(NA, NA, NA, fitted.values(ARCH4))
+wls_ARCH <- update(model, weights = 1/hARCH)
+table(wls_ARCH)
+```
+>Vemos que 
+$\beta_1 = 0.59$ y ahora es $\beta_1 = 0.03885$ estimando con los valores ajustados calculados por ARCH $\beta_1 = 0.02387$ 
+
+##Ejercicio 5
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/fair.RData")
+fair <- data
+fair96 <- filter(fair, year < 1996)
+Mod12_5 <- lm(data = filter(fair, year < 1996), demwins ~ partyWH + incum + I(partyWH*gnews) + I(partyWH*inf)) #partyWH:inf
+table(Mod12_5)
+
+```
+>El valor más significativo en el modelo es incum, la cual toma el valor de 1 cuando quien busca la reelección es demócrata, de -1 cuando es republicano y 0 en otros casos; esta es la única variable que podría incidir en la probabilidad de determinar el ganador, pero hay que tener cuidado por que la prueba f indica que el modelo en general no es significativo al 5%, esto puede ser por que la variable dependiente y las independientes son binarias.
+
+###ii)
+```{r}
+h5 <- fitted.values(Mod12_5)
+sum(fitted.values(Mod12_5) < 0)
+sum(fitted.values(Mod12_5) > 1)
+
+```
+>menores que cero hay 2 y mayores que uno también hay 2. si el modelo arroja un valor de mayor 1 significa que está muy seguro de que los demócratas ganan, si es menor a 0 está muy seguro que los republicanos ganan.
+
+###iii)
+```{r}
+sum(fair96$demwins == round(h5, 0))
+sum(fair96$demwins == 1 & (h5 > 0.5))
+sum(fair96$demwins == 0 & (h5 < 0.5))
+```
+>15 veces de 20 el modelo predice bien el ganador de las elecciones, por lo cual el modelo aparenta buenos estimadores, sin embargo a la hora de predecir y aproximar un valor de 0,51 a 1 genera un margen de error de predicción muy alto, y el porcentaje de veces que acierta se reduce en cuanto menos se acerque a uno.
+
+###iv)
+```{r}
+predict(Mod12_5, newdata = filter(fair, year > 1995))
+
+Mod12_5_96 <- lm(data = fair, demwins ~ partyWH + incum + I(partyWH*gnews) + I(partyWH*inf))
+fitted.values(Mod12_5_96)[21] 
+```
+>El modelo predijo que Clinton ganaba la reelección al arrojar un valor de demwins de 0.55 lo cual es mayor que 0.5 que era el criterio para determinar si los demócratas ganaban. Hicimos además el valor esperado de la predicción inclyéndolo en el modelo y nos dio 0.65844. 
+
+
+###v
+
+```{r}
+resd5 <- residuals(Mod12_5)
+AR1_5 <- rlm(resd5 ~  I(lag(resd5)))
+table(AR1_5)
+Box.test(resd5)
+```
+>No hay autocorrelación, sin embargo, no sé por qué es necesario hacer las pruebas robustas a la heterocedasticidad si no parece haber heterocedasticidad. 
+
+##vi
+```{r}
+sqrt(diag(vcovHAC(Mod12_5)))
+```
+
+>$t_{\beta_0}$ creció en 0.5, aunque no afecta porque ya era muy significativa, en todo caso ahora es más significativo.
+$t_{\beta_1}$ disminuyó, que al ser negativo significa que su p-valor disminuye y es más significativo, lo hizo en 0.15 que no fueron suficientes para ser significativos a un nivel relevante.
+$t_{\beta_2}$ disminuyó, su valor 2.1538, lo cual nos deja con un p-valor de 0.04827485. Sigue siendo significativo con $\alpha_{05}$
+$t_{\beta_3}$ aumentó en 0.12 y t=1.7586, ahora es significativo con $\alpha_{10}$.
+$t_{\beta_4}$ disminuyó, y dado que es negativo deberáa ser más significativo, pero no lo es a ningún nivel relevante.
+Los estimadores robustos HAC son aproximaciones asintóticas por la Ley de los grandes números, dado que sólo tenemos 20 observaciones no estamos seguros de preferir estos valores que los anteriores, además, por la distancia que hay entre una elección y otra (4 años) no es difícil suponer que las observaciones no tienen correlación ni heterocedasticidad, como se comentó en la parte teórica de la tarea. 
+
+##Ejercicio 6
+###i
+
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/consump.RData")
+consump <- data
+model107 <- lm(lc ~ ly, data = consump)
+Box.test(residuals(model107),lag = 1,type = 'Ljung-Box')
+
+```
+>La prueba Box-Ljung indica que existe autocorrelación de orden 1
+
+###ii
+
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/consump.RData")
+consump <- data
+u <- residuals(lm(data = consump, gc ~ gc_1))
+model <- lm(I(c(NA,NA,u^2))~ gc_1 + I(gc_1^2) , data = consump)
+table(model)
+```
+>No existe evidencia de heterocedasticidad en el modelo. por lo tanto se puede afirmar que las perturbaciones del consumo tienen varianza constante.
+
+##Ejercicio 7
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/barium.RData")
+barium <- data
+Mod12_7 <- lm(data = barium, lchnimp ~ lchempi + lgas + lrtwex + befile6 + affile6 + afdec6)
+table(Mod12_7)
+CO7 <- cochrane.orcutt(Mod12_7)
+table(CO7)
+```
+
+> Se parecen mucho, la $R^2_{CO}$ es menor que $R^2_{PW}$, nosostros suponemso que es por la observación que pierde Cochrane Orcutt y que mantiene Prais Winsten sin embargo el valor de las $\beta$ es muy similar.
+
+##Ejercicio 8
+###i)
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/traffic2.RData")
+traffic2 <- data
+Mod12_8 <- lm(data = traffic2, prcfat ~ feb + mar + apr + may + jun + jul + aug + sep + oct + nov + dec + wkends + unem + spdlaw + beltlaw)
+resd8 <- residuals(Mod12_8)
+Box.test(resd8)
+AR1_8 <- lm(resd8 ~ lag(resd8))
+table(AR1_8)
+
+
+```
+>Sí hay autocorrelación.
+La exogeneidad estricta se puede suponer por el tipo de variables, debido a que un cambio en el tráfico no puede explicar ninguna de las variables independientes las cuales solo estan en funcion del calendario y el tiempo. 
+
+###ii)
+```{r}
+sqrt(diag(NeweyWest(Mod12_8, lag = 4)))
+Mod12_8rlm <- rlm(data = traffic2, prcfat ~ feb + mar + apr + may + jun + jul + aug + sep + oct + nov + dec + wkends + unem + spdlaw + beltlaw)
+table(Mod12_8rlm)
+```
+>Por este método, beltlaw obtiene un t de -4.46 lo cual es altamente significativo mientras que spdlaw pierde bastante significación. 
+
+###iii)
+```{r}
+table(Mod12_8)
+PW <- prais.winsten(Mod12_8$call$formula, data = traffic2, iter = 50, rho = 0.4526493)
+kable(PW[[1]][["coefficients"]])
+PW[[2]]
+```
+
+>si hay cambios importantes en los coeficientes, betlaw pierde un poco de significación pero lo sigue siendo al 98.7%
+
+## Ejercicio 9
+###i
+
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/fish.RData")
+fish <- data
+model9_1 <- lm(data = fish, lavgprc ~ mon + tues + wed + thurs + t)
+table(model9_1)
+linearHypothesis(model9_1, c('mon','tues','wed', 'thurs'))
+
+```
+ 
+>No existe evidencia para decir que los precios tengan estacionalidad en la semana. estas variables binarias no son conjuntamente significativas.
+
+###ii
+```{r}
+model9_2 <- model9_1 %>% update(.~.+ wave2 + wave3)
+table(model9_2)
+
+```
+>Efectivamente, las olas están afectando significativamente los precios del pescado. esto puede explicarse porque ante un mar tempestuoso la cantidad de pescado se reduce y ante un oferta menor los precios en promedio son más altos.
+
+###iii
+>La tendencia ahora no es significativa, en el modelo anterior, mediante la prueba F se observa que en conjunto ninguna variable era significativa. Ahora que se agregaron dos variables que explican mejor el comportamiento del precio la tendencia pierde total significación. puede ser que las variables omitidas en el modelo anterior tenían correlación con la tendencia.
+
+###iv
+>todas las variables independientes del modelo son estrictamente exógenas, pues se trata del tiempo y días de la semana expresados en variables booleanas las cuales no dependen de nada más que del tiempo. por otra parte los movimientos de las olas y el clima tampoco pueden ser explicadas por el precio del pescado.
+
+###v
+>Existe suficiente evidencia estadística para determinar que en este modelo los errores están correlacionados
+
+```{r}
+Box.test(residuals(model9_2), lag = 5, type = 'Ljung-Box')
+```
+>Si hay autocorrelacion
+
+###vi
+
+
+```{r}
+sqrt(diag(NeweyWest(model9_2, lag = 4)))
+
+```
+> no hay cambios drasticos en los errores estandar de wave2 y wave3 al hacerlos robustos, se esperaban errores mas grandes los cuales producirian unos invervalos de confianza mas amplios.
+
+###vii
+
+```{r}
+modelPW <- prais.winsten(model9_2$call$formula, data = fish, iter = 50)
+modelPW[1]
+```
+>los estimadores de wage2 y wage3 se ven afectados al estimarlos por este metodo, pero aun siguen siendo significativos. 
+
+##Ejercicio 10
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/phillips.RData")
+phillips <- data
+Mod12_10 <- lm(data = phillips, inf ~ unem)
+table(Mod12_10)
+
+```
+
+###ii)
+
+```{r}
+resid8 <- residuals(Mod12_10)
+AR1_10 <- lm(data = phillips, resid8 ~ lag(resid8))
+table(AR1_10)
+Box.test(resid8)
+```
+>Sí hay  evidencia contundente de correlación serial y hay coeficiente de correlación positivo de $\rho = 0.5725$. 
+
+###iii)
+```{r}
+prais.winsten(data = phillips, inf ~ unem)
+```
+>El valor de $\beta_0$ pasó de 1.0536 a 7.9994 al estimar por medio de Prais Winsten y el $\beta_1$ pasó de 0.5024 a -0.714. El estimador ahora es más significativo, tanto en el intercepto como en el estimador de unem. 
+
+###iv)
+```{r}
+CO10 <- cochrane.orcutt(Mod12_10)
+table(CO10)
+```
+>El modelo de Cochrane Orcutt es más significativo que OLS pero menos que el Prais Winsten. El p-valor de ambos estimadores es ligeramente menos consistente sin embargo los estimadores $\beta_0$ y $\beta_1$ no difieren mucho. La estimación de Prais Winsten gana algo de significancia porque calcula mejor los estimadores por la primera observación que Cochrane Orcutt no toma. 
+
+
+##Ejercicio 11
+```{r 11}
+
+load("datos/Wooldrigde_data/R data sets for 5e/nyse.RData")
+nyse <- data
+u_124 <- residuals(lm(return ~ return_1, data = nyse))
+summary(u_124^2)
+
+```
+
+
+###ii)
+>Es el mismo modelo que había calculado en el ejercico 4 (BPii)
+
+```{r}
+BPii <- lm(I(c(NA,NA,u_124^2))~ return_1 + I(return_1^2), data = nyse)
+table(BPii)
+```
+###iii)
+```{r}
+varianzaCondicional <- function (x,coefficients){
+ 
+   coefficients[[1]] + coefficients[[2]]*x + coefficients[[3]]*x^2
+    
+}
+curve(varianzaCondicional(x,BPii$coefficients),-50,50,ylim = c(-10, 200))
+abline(h = 0, col = "red")
+root <- polyroot(BPii$coefficients)
+paste('varianza menor: ',root[1])
+paste('return_1 menor ', varianzaCondicional(as.double(root[1]),BPii$coefficients))
+
+
+```
+
+>la varianza menor es aproximadamente 1.33 y el retorno en este punto es de aproximadamente 2.7
+
+###iv
+> no, tal y como se observa en la gráfica, la estimación de la varianza nunca seria negativa.
+
+###v
+```{r}
+paste ('R-Squared: ',summary(BPii)$r.squared)
+```
+
+>El R-cuadrado para el modelo 12.9 es 0.114, en comparación con 0.130 para el modelo de  retorno_1^2.
+el modelo del inciso ii parece ajustarse mejor que el ARCH(1)
+
+###vi
+```{r}
+ARCH2 = lm(I(u_124^2) ~ I(lag(u_124)^2) + I(lag(u_124,2)^2) )
+table(ARCH2)
+paste ('R-Squared: ',summary(ARCH2)$r.squared)
+```
+> El resago 2 no es significativo, su t es apenas de 1.09 y el $R^2$ de este modelo es 0.115 aproximadamente, por lo tanto es mejor el modelo del inciso ii
+
+##Ejercico 12
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/inven.RData")
+inven <- data
+Mod11_6 <- lm(data = inven, cinven ~ cgdp)
+resd12 <- residuals(Mod11_6)
+AR1_12 <- lm(resd12 ~ lag(resd12), data = inven)
+table(AR1_12)
+```
+###ii)
+```{r}
+prais.winsten(data = inven, cinven ~ cgdp)
+table(Mod11_6)
+```
+>No hay autocorrelación y los estimadores calculados por OLS y por Prais Winsten son los mismos. No es necesario corregir autocorrelación en los datos y la regresión hecho por Prais Winsten sale prácticamente igual. 
+
+##Ejercicio 13
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/okun.RData")
+okun <- data
+Mod11_11 <- lm(data = okun, pcrgdp ~ cunem)
+resd13 <- residuals(Mod11_11)
+AR1_13 <- lm(resd13 ~ lag(resd13), data = okun)
+table(AR1_13)
+
+```
+>No parece haber autocorrelación
+
+###ii)
+```{r}
+BP13 <- lm(I(c(NA, resd13^2)) ~ cunem, data = okun)
+table(BP13)
+```
+>Hay heterocedasticiadad, los residuales se explican por los datos en cunem, por lo tanto la varianza está condicionada por la variable explicativa. 
+
+###iii)
+```{r}
+Mod13iii <- rlm(data = okun, pcrgdp ~ cunem)
+table(Mod13iii)
+table(Mod11_11)
+```
+
+>El $se(\beta_0)$ es un 9.1% más grande en la estimación robusta (0.1775/0.1627) y el $se(\beta_1)$ es 9.12% más grande (0.1986/0.1820) en la estimación robusta. Sí son considerablemente más grandes los estimadores robustos. 
+
+##Ejercicio 14
+```{r}
+
+load("datos/Wooldrigde_data/R data sets for 5e/minwage.RData")
+minwage <- data
+Mod14 <- lm(gwage232 ~ gmwage + gcpi, data = minwage)
+resd14 <- residuals(Mod14)
+AR1_14 <- lm(resd14 ~ lag(resd14))
+table(AR1_14)
+```
+>Sí hay autocorrelación residual, aunque es muy poca porque nos da un valor de $\rho=0.0974$. Estadísticamente no podemos decir que $\rho=0$, más bien probamos que $\rho\neq0$. A pesar de esto el valor de $\rho$ es muy bajo.
+Cómo afecta si suponemos que son estictamente exógenas?
+Creo que si suponemos la exogeneidad estircta nos deshacemos de $\rho$ y suponemo que $\rho=0$
+
+###ii)
+
+```{r}
+table(Mod14)
+se_rob14 <- sqrt(diag(NeweyWest(Mod14, lag = 12)))
+se_rob14
+```
+>Los $se_{Newey-West}$ son menos que los $se_{OLS}$.
+
+###iii)
+```{r}
+coeftest(Mod14)
+coeftest(Mod14, vcov = NeweyWest)
+coeftest(Mod14, vcov. = vcovHC)
+coeftest(Mod14, vcov. = vcovHAC)
+se_rob14
+sqrt(diag(vcovHC(Mod14)))
+sqrt(diag(vcovHAC(Mod14)))
+
+```
+>En la primer prueba, es posible advertir que el p-valor cuenta con un importante grado de significancia, lo cual orilla a concluir que dentro de la regresión del salario en dicha región, contra las variables del salario federal, crecimiento en el índice de precios al consumidor, el nivel de salarios, por lo cual podemos concluir que existe un amplio grado de nivel explicativo que pueden brindar las variables, es decir, de existir un incremento generalizado de precios, las familias demandarán un incremento en el salario para poder hacer frente a sus obligaciones así como para cubrir sus necesidades más elementales.Los estimadores, dado que hay heterocedasticidad dejan de ser MELI-BLUE, por lo cual corregimos las $se_{OLS}$ por medio de $se_{Newey-West}$, $se_{HC}$ y $se_{HAC}$, de acuerdo a los resultados fue posible advertir que con Newey West y HAC, se obtuvieron resultados parecidos a los efectuados mediante OLS. No obstante, al momento se efectuar la corrección HC, se advierte que esta medida de corrección resta de manera evidente la significatividad de la relación de las variables, lo cual nos hace pensar que de incrementarse el índice de precios, no habrá una incidencia palpable dentro de los salarios según esta corrección. El valor de $\rho$ fue muy bajo, aunque sí significativo, entonces las correciones por Newey West y HAC deberían usarse para corregir heterocedasticidad y autocorrelación, además, como somos muy democráticos vamos a decir que ganaron el voto popular 2 a 1 (jeje). 
+
+###iv)
+```{r}
+BP14 <- lm(I(c(NA, resd14^2)) ~ gmwage + gcpi, data = minwage)
+table(BP14)
+```
+>Sí hay heterocedasticidad porque la prueba F tiene un p-valor de 2.2e-16, esto es significativo a cualquier nivel. Además que gmwage es muy significativo al explicar los errores.
+
+###v)
+```{r}
+Mod14v <- update(Mod14, . ~ . + gmwage_1 + gmwage_2 + gmwage_3 + gmwage_4 + gmwage_5 + gmwage_6 + gmwage_7 + gmwage_8 + gmwage_9 + gmwage_10 + gmwage_11 + gmwage_12)
+table(Mod14v)
+Mod14v2 <- rlm(gwage232 ~ gmwage + gcpi + gmwage_1 + gmwage_2 + 
+    gmwage_3 + gmwage_4 + gmwage_5 + gmwage_6 + gmwage_7 + gmwage_8 + 
+    gmwage_9 + gmwage_10 + gmwage_11 + gmwage_12, data = minwage)
+table(Mod14v2)
+coeftest(Mod14v, vcov. = NeweyWest(Mod14v))
+coeftest(Mod14v, vcov. = vcovHC)
+coeftest(Mod14v, vcov. = vcovHAC)
+linearHypothesis(Mod14v, c("gmwage_1", "gmwage_2", "gmwage_3", "gmwage_4", "gmwage_5", "gmwage_6", "gmwage_7", "gmwage_8", "gmwage_9", "gmwage_10", "gmwage_11", "gmwage_12"))
+
+
+```
+##vi)
+```{r}
+linearHypothesis(Mod14v, c("gmwage_1", "gmwage_2", "gmwage_3", "gmwage_4", "gmwage_5", "gmwage_6", "gmwage_7", "gmwage_8", "gmwage_9", "gmwage_10", "gmwage_11", "gmwage_12"), vcov. = NeweyWest(Mod14v))
+```
+>Calculando por medio de Newey West la prueba F es mucho más significativa, lo cual nos dice que si calculamos los rezagos de forma robusta se vuelven mucho más significativos. $H_0$ : Los rezagos en conjunto no son significativos, $H_1$: sí son significativos en conjunto. Rechazamos $H_0$ a cualqueir nivel de significancia, por lo cual decimos que los rezagos del salario mínimo federal sí nos explican el comportamiento del crecimeitno del salario en el sector 232.
+
+vii)
+```{r}
+Mod14vii <- lm(gwage232 ~ gmwage + I(gmwage_1 - gmwage) + I(gmwage_2 - gmwage) + I(gmwage_3 - gmwage) + I(gmwage_4 - gmwage) + I(gmwage_5 - gmwage) + I(gmwage_6 - gmwage) + I(gmwage_7 - gmwage) + I(gmwage_8 - gmwage) + I(gmwage_9 - gmwage) + I(gmwage_10 - gmwage) + I(gmwage_11 - gmwage) + I(gmwage_12 - gmwage) + gcpi, data = minwage)
+summary(Mod14vii)
+
+```
+>La PLP es de 0.1975990 si tomamos en cuenta todos los rezagos, si no es el coeficiente de gmwage de la primera regresión, que es 0.1505714, esta PLP es un 31.23% mayor, (0.1975990/0.1505714) lo cual es considerable.
+
+
+
+
+##Ejercicio 15
+
+```{r}
+load("datos/Wooldrigde_data/R data sets for 5e/barium.RData")
+barium <- data
+Mod12_7 <- lm(data = barium, lchnimp ~ lchempi + lgas + lrtwex + befile6 + affile6 + afdec6)
+table(Mod12_7)
+prais.winsten(data = barium, lchnimp ~ lchempi + lgas + lrtwex + befile6 + affile6 + afdec6)
+```
+
+###i
+>Se pueden comparar los SE de Newey West o los HAC con los de MCO porque se trata de una corrección a la SE del mismo modelo. En el caso de los MCG no se puede comparar la SE porque los estimadores son distintos y no tendría sentido hablar de SE del estimador si el SE es distinto
+
+###ii)
+>se Newey West
+
+```{r}
+sqrt(diag(NeweyWest(Mod12_7, lag = 4)))
+coeftest(Mod12_7, vcov. = NeweyWest(Mod12_7, lag = 4))
+
+```
+>El error estándar de lchempi creció mucho, pasó de ser $se_{OLS} = 0.4792$ a ser de $se_{NW_4} = 0.6799$ esto equivale a un incremento de 41.88% (0.6799/0.4792).
+El error estándar de afdec6 disminuyá, pasá de ser $se_{OLS} = 0.2858$ a ser de $se_{NW_4} = 0.2593$ esto equivale a una disminución del 9.27% (0.2593/0.2858).
+
+###iii)
+```{r}
+sqrt(diag(NeweyWest(Mod12_7, lag = 12)))
+```
+>El error estándar de lchempi creció todavía más, llegá a $se_{NW_12} = 0.7372$ esto equivale a un incremento de 53.84% respecto del $se_{OLS}$ (0.7372/0.4792).
+El error estándar de afdec6 disminuyá más y llegá a $se_{NW_12} = 0.1946$ esto equivale a una disminución del 31.91% respecto al $se_{OLS}$ (0.1946/0.2858).
+En el caso de los $se_{OLS}$ y los $se_{PW}$ guardan cierta proporción y todas las $se_{PW_j}$ son mayores que $se_{OLS_j}$, no pasa igual con las $se_{NW}$ donde dicha proporción se pierde y pueden aumentar unas y disminuir otras y varían según el némeor de lags.
+
+
+
+
+

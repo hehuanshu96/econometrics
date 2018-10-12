@@ -1,0 +1,135 @@
+---
+title: "Capítulo 15"
+author: "Anderoson Martínez"
+date: "May 22, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+library(AER)
+library(stargazer)
+library(knitr)
+library(AER)
+```
+##1
+```{r}
+
+data(wage2, package='wooldridge')
+reg.ols <-   lm(log(wage) ~ educ, data=mroz)
+reg.iv <- ivreg(log(wage) ~ educ | fatheduc, data=mroz) 
+stargazer(reg.ols,reg.iv, type="text")
+```
+
+##2
+```{r}
+data(fertil2, package = "wooldridge")
+mod_i <- lm(children ~ educ + age + I(age^2)  , data = fertil2)
+kable(summary(mod_i)$coefficients)
+```
+i) Aumentar en un año la educación reduce los nacimientos en ~0.09, si 100 mujeres aumentaran un año de educación, se espera una reducción de 9 niños.
+
+```{r}
+relevanciaIV <- lm(educ ~ frsthalf + age + I(age^2), data = fertil2)
+kable(summary(relevanciaIV)$coefficients)
+```
+
+ii) Se puede probar que nacer en el primer semestre esta correlacionado con los años de eucación por lo cual si cumple con relevancia el instrumento.
+
+```{r}
+iv <- ivreg(children ~ educ + age + I(age^2) | frsthalf + age + I(age^2), data = fertil2)
+stargazer(mod_i, iv, type= "text")
+
+```
+iii) El estimador pasa de -0.09 a -0.17 y sigue siendo significativo a pesar que la SD amenta bastante por lo que se genera un inveralo de confianza amplio. los demas estimadores no se afectan drasticamente.
+
+```{r}
+mod_iv <- update(mod_i, . ~ . + electric + tv + bicycle)
+iv2 <- ivreg(children ~ educ + age + I(age^2) + electric + tv + bicycle
+             | frsthalf + age + I(age^2) + electric + tv + bicycle, data = fertil2)
+stargazer(mod_iv, iv2, type = "text")
+```
+iv)  la variable Tv es altamente significativa por el metodo del OLS, y segun eso tener un tv reduce en 0.02 los nacimientos, esto puede ser por que ver televisión es un pasatiempo pero también puede que el tv este correlacionado con el ingreso del hogar y a mayor ingreso se tienen menos hijos.
+
+
+##3
+i) probablemente vivir cerca de una universidad esta correlacionado con un entorno mas desarrollado y puede influir en el desarrollo de la habilidad para los individuos. 
+
+ii) 
+```{r}
+IQ <- lm(IQ ~ nearc4, data = card)
+summary(IQ)
+
+```
+
+Efectivamente el IQ esta correlacionado positivamente con vivir cerca de una universidad.
+
+iii)
+```{r}
+IQ <- update(IQ, . ~ . + smsa66 + reg662 + reg663 + reg664 +
+              reg665 + reg666 + reg667 + reg668 + reg669)
+kable(summary(IQ)$coefficients, type = "text")
+```
+Al parecer la correlación que se observó anteriormente se debe al entorno y a que ser de unas regiones en específico aumenta sginificativamente el IQ. ahora se puede observar que no hay correlación con nearc4 y que puede ser un buen IV.
+
+```{r}
+resid <- residuals(iv)
+aux <- update(ols,resid ~ . )
+summary(aux)
+```
+
+
+iv) se concluye que los controles por region y entorno son importantes en el modelo para controlar la habilidad.
+
+##4
+
+##5
+
+```{r message=FALSE, warning=FALSE}
+# source http://www.urfie.net
+data(card, package='wooldridge')
+# Checking for relevance: reduced form
+redf<-lm(educ ~ nearc4+exper+I(exper^2)+black+smsa+south+smsa66+reg662+
+           reg663+reg664+reg665+reg666+reg667+reg668+reg669, data=card)
+resid <- residuals(redf)
+
+test_exogen <- lm(log(wage) ~ educ + exper + I(exper^2) + black + resid + 
+                    smsa + south + smsa66 + reg662 + reg663 + reg664 + 
+                    reg665 + reg666 + reg667 + reg668 + reg669, data=card)
+# OLS
+ols<-lm(log(wage)~educ+exper+I(exper^2)+black+smsa+south+smsa66+reg662+
+           reg663+reg664+reg665+reg666+reg667+reg668+reg669, data=card)
+# IV estimation
+iv <-ivreg(log(wage)~educ+exper+I(exper^2)+black+smsa+south+smsa66+
+             reg662+reg663+reg664+reg665+reg666+reg667+reg668+reg669 
+          | nearc4+exper+I(exper^2)+black+smsa+south+smsa66+
+            reg662+reg663+reg664+reg665+reg666+reg667+reg668+reg669
+          , data=card)
+
+# Pretty regression table of selected coefficients
+stargazer(test_exogen, iv, ols, redf, type="text",
+          keep=c("ed","near","exp","bl", "resid"),
+          keep.stat=c("n","rsq"), 
+          column.labels = c("i", "ii", "ii", ""))
+
+```
+
+i) Haciendo la prueba de Exogeniedad no se encuentra significancia en la variable resid, por lo que se puede decir que la diferencia entre los resultados de OLS y IV no es significativa.
+
+ii) La estimación mediante IV da un valor mas grande en $\beta_1 $, pero el error estandar crece tanto que el intervalo de confianza ahora contiene lo estimado por OLS.
+
+```{r}
+
+R <- lm(residuals(iv) ~ nearc4+exper+I(exper^2)+black+smsa+south+smsa66+
+            reg662+reg663+reg664+reg665+reg666+reg667+reg668+reg669, data = card)
+test <- summary(R)
+stat <- test$r.squared*nobs(R)
+pvalue <- 1-pchisq(stat,1)
+
+```
+
+iii) 
+
+
+
