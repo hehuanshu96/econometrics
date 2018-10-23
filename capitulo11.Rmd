@@ -8,16 +8,16 @@ output:
 
 11.1) Use la base de datos HSEINV.RAW para este ejercicio.
 
-i) Calcule la autocorrelación de primer orden de log(invpc). Ahora, calcule la autocorrelación
-después de eliminar la tendencia lineal de log(invpc). Realice el mismo procedimiento
-para log( price). ¿Cuál de las dos series podría tener raíz unitaria?
+i) Calcule la autocorrelaciï¿½n de primer orden de log(invpc). Ahora, calcule la autocorrelaciï¿½n
+despuï¿½s de eliminar la tendencia lineal de log(invpc). Realice el mismo procedimiento
+para log( price). ï¿½Cuï¿½l de las dos series podrï¿½a tener raï¿½z unitaria?
 
-```{r cars}
+```{r}
 load("C:/Users/ander/OneDrive/economia_5/econometria/datos/Wooldrigde_data/R data sets for 5e/hseinv.RData")
-# autocorrelación de primer orden de log(invpc)
+# autocorrelaciï¿½n de primer orden de log(invpc)
 hseinv <- data
 acf(hseinv$linvpc)
-#después de eliminar la tendencia lineal de log(invpc)
+#despuï¿½s de eliminar la tendencia lineal de log(invpc)
 linvpc_trendOff <- resid(lm(data = hseinv, linvpc ~ t))
 
 acf(linvpc_trendOff)
@@ -26,10 +26,10 @@ acf(linvpc_trendOff)
 
 
 ```{r}
-# autocorrelación de primer orden de log(price)
+# autocorrelaciï¿½n de primer orden de log(price)
 hseinv <- data
 acf(hseinv$lprice)
-#después de eliminar la tendencia lineal de log(price)
+#despuï¿½s de eliminar la tendencia lineal de log(price)
 lprice_trendOff <- resid(lm(data = hseinv, lprice ~ t))
 
 acf(lprice_trendOff)
@@ -59,9 +59,9 @@ summary(lprice)
 No se puede rechazar h0 por tanto si hay raiz unitaria.
 
 
-ii) A partir de los resultados del inciso i), estime la ecuación
+ii) A partir de los resultados del inciso i), estime la ecuaciï¿½n
 log(invpct) = ??0 +??1??log(pricet) + ??2t + ut
-y escriba los resultados en la forma usual. Interprete el coeficiente ??^1 y determine si en términos estadísticos es significativo.
+y escriba los resultados en la forma usual. Interprete el coeficiente ??^1 y determine si en tï¿½rminos estadï¿½sticos es significativo.
 
 ```{r}
 
@@ -71,12 +71,12 @@ summary(model11_1ii)
 
 Existe correlacion entre el log ingreso percapita y la variacion del log indice de precios, con un R-squared de 0.51, la prueba f indica que el modelo es util a un nivel de significancia del 99%. todos sus estimadores son significativos al 99.9%. en cuant a I(lprice - lprice_1), cuando la variacion del indice de precios se incremente en 1%, se espera que el ingreso percapita aumente en 3.9%.
 
-iii)Elimine la tendencia lineal de log(invpct) y use la versión sin tendencia como la variable
-dependiente en la regresión del inciso ii) (véase la sección 10.5). ¿Qué ocurre con
+iii)Elimine la tendencia lineal de log(invpct) y use la versiï¿½n sin tendencia como la variable
+dependiente en la regresiï¿½n del inciso ii) (vï¿½ase la secciï¿½n 10.5). ï¿½Quï¿½ ocurre con
 la R2?
 
 ```{r}
-#después de eliminar la tendencia de log(linvpc)
+#despuï¿½s de eliminar la tendencia de log(linvpc)
 #residuals <- c(NA,residuals(model11_1ii))
 residuals <- residuals(lm(data = hseinv, linvpc ~ t))
 
@@ -86,8 +86,8 @@ summary(model11_1ii)
 ```
 luego de quitar la tendencia, se pierde completamente la correlacion entre estas dos variables. 
 
-iv) Ahora utilice ??log(invpct) como variable dependiente. ¿En qué difieren sus resultados
-respecto a los resultados del inciso ii)? ¿La tendencia temporal sigue siendo significativa? ¿Por qué?
+iv) Ahora utilice ??log(invpct) como variable dependiente. ï¿½En quï¿½ difieren sus resultados
+respecto a los resultados del inciso ii)? ï¿½La tendencia temporal sigue siendo significativa? ï¿½Por quï¿½?
 
 ```{r}
 model11_1ii <- update(model11_1ii, I(linvpc-linvpc_1)~.)
